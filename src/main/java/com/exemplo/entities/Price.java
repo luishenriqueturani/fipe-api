@@ -1,15 +1,8 @@
 package com.exemplo.entities;
 
+import com.exemplo.enums.Currency;
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,8 +22,9 @@ public class Price extends PanacheEntity {
 	@Column(name = "value", nullable = false, precision = 12, scale = 2)
 	public BigDecimal value;
 
-	@Column(name = "currency", nullable = false, length = 3)
-	public String currency = "BRL";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false, length = 3)
+    public Currency currency = Currency.BRL;
 
 	@Column(name = "consulted_at", nullable = false)
 	public LocalDateTime consultedAt;
