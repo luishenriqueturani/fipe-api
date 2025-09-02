@@ -88,6 +88,11 @@ async function collectCars() {
   let years = []
 
   for (let i = 1; i < carsLength; i++) {
+    // Verifica se a opção da marca existe
+    if (!carBrand.options[i]) {
+      continue
+    }
+    
     carBrand.selectedIndex = i
     carBrand.dispatchEvent(new Event('change'))
 
@@ -95,8 +100,18 @@ async function collectCars() {
     await new Promise(resolve => setTimeout(resolve, 500))
 
     let modelsLength = carModel.options.length
+    
+    // Verifica se há modelos disponíveis para esta marca
+    if (modelsLength <= 1) {
+      continue
+    }
 
     for (let j = 1; j < modelsLength; j++) {
+      // Verifica se a opção do modelo existe
+      if (!carModel.options[j]) {
+        continue
+      }
+      
       carModel.selectedIndex = j
       carModel.dispatchEvent(new Event('change'))
 
@@ -104,8 +119,18 @@ async function collectCars() {
       await new Promise(resolve => setTimeout(resolve, 500))
 
       let yearsLength = carYear.options.length
+      
+      // Verifica se há anos disponíveis para este modelo
+      if (yearsLength <= 1) {
+        continue
+      }
 
       for (let k = 1; k < yearsLength; k++) {
+        // Verifica se a opção do ano existe
+        if (!carYear.options[k]) {
+          continue
+        }
+        
         carYear.selectedIndex = k
         carYear.dispatchEvent(new Event('change'))
 
@@ -124,24 +149,30 @@ async function collectCars() {
           //vehicleData.push(tableData)
           years.push(tableData)
         }
+        await new Promise(resolve => setTimeout(resolve, 5000))
       }
 
-      models.push({
-        id: j,
-        name: carModel.options[j].text || '',
-        years: years
-      })
+      // Só adiciona o modelo se tiver dados válidos
+      if (carModel.options[j] && carModel.options[j].text) {
+        models.push({
+          id: j,
+          name: carModel.options[j].text,
+          years: years
+        })
+      }
 
       years = []
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-
-    brands.push({
-      id: i,
-      name: carBrand.options[i].text || '',
-      models: models
-    })
+    // Só adiciona a marca se tiver dados válidos
+    if (carBrand.options[i] && carBrand.options[i].text) {
+      brands.push({
+        id: i,
+        name: carBrand.options[i].text,
+        models: models
+      })
+    }
 
     models = []
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -170,22 +201,47 @@ async function collectTrucks() {
   let years = []
 
   for (let i = 1; i < trucksLength; i++) {
+    // Verifica se a opção da marca existe
+    if (!truckBrand.options[i]) {
+      continue
+    }
+    
     truckBrand.selectedIndex = i
     truckBrand.dispatchEvent(new Event('change'))
 
     await new Promise(resolve => setTimeout(resolve, 500))
 
     let modelsLength = truckModel.options.length
+    
+    // Verifica se há modelos disponíveis para esta marca
+    if (modelsLength <= 1) {
+      continue
+    }
 
     for (let j = 1; j < modelsLength; j++) {
+      // Verifica se a opção do modelo existe
+      if (!truckModel.options[j]) {
+        continue
+      }
+      
       truckModel.selectedIndex = j
       truckModel.dispatchEvent(new Event('change'))
 
       await new Promise(resolve => setTimeout(resolve, 500))
 
       let yearsLength = truckYear.options.length
+      
+      // Verifica se há anos disponíveis para este modelo
+      if (yearsLength <= 1) {
+        continue
+      }
 
       for (let k = 1; k < yearsLength; k++) {
+        // Verifica se a opção do ano existe
+        if (!truckYear.options[k]) {
+          continue
+        }
+        
         truckYear.selectedIndex = k
         truckYear.dispatchEvent(new Event('change'))
 
@@ -203,22 +259,30 @@ async function collectTrucks() {
           //vehicleData.push(tableData)
           years.push(tableData)
         }
+        await new Promise(resolve => setTimeout(resolve, 5000))
       }
-      models.push({
-        id: j,
-        name: truckModel.options[j].text || '',
-        years: years
-      })
+      
+      // Só adiciona o modelo se tiver dados válidos
+      if (truckModel.options[j] && truckModel.options[j].text) {
+        models.push({
+          id: j,
+          name: truckModel.options[j].text,
+          years: years
+        })
+      }
 
       years = []
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    brands.push({
-      id: i,
-      name: truckBrand.options[i].text || '',
-      models: models
-    })
+    // Só adiciona a marca se tiver dados válidos
+    if (truckBrand.options[i] && truckBrand.options[i].text) {
+      brands.push({
+        id: i,
+        name: truckBrand.options[i].text,
+        models: models
+      })
+    }
 
     models = []
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -247,22 +311,47 @@ async function collectMotorCycles() {
   let years = []
 
   for (let i = 1; i < motorCyclesLength; i++) {
+    // Verifica se a opção da marca existe
+    if (!motorCycleBrand.options[i]) {
+      continue
+    }
+    
     motorCycleBrand.selectedIndex = i
     motorCycleBrand.dispatchEvent(new Event('change'))
 
     await new Promise(resolve => setTimeout(resolve, 500))
 
     let modelsLength = motorCycleModel.options.length
+    
+    // Verifica se há modelos disponíveis para esta marca
+    if (modelsLength <= 1) {
+      continue
+    }
 
     for (let j = 1; j < modelsLength; j++) {
+      // Verifica se a opção do modelo existe
+      if (!motorCycleModel.options[j]) {
+        continue
+      }
+      
       motorCycleModel.selectedIndex = j
       motorCycleModel.dispatchEvent(new Event('change'))
 
       await new Promise(resolve => setTimeout(resolve, 500))
 
       let yearsLength = motorCycleYear.options.length
+      
+      // Verifica se há anos disponíveis para este modelo
+      if (yearsLength <= 1) {
+        continue
+      }
 
       for (let k = 1; k < yearsLength; k++) {
+        // Verifica se a opção do ano existe
+        if (!motorCycleYear.options[k]) {
+          continue
+        }
+        
         motorCycleYear.selectedIndex = k
         motorCycleYear.dispatchEvent(new Event('change'))
 
@@ -280,23 +369,30 @@ async function collectMotorCycles() {
           //vehicleData.push(tableData)
           years.push(tableData)
         }
+        await new Promise(resolve => setTimeout(resolve, 5000))
       }
 
-      models.push({
-        id: j,
-        name: motorCycleModel.options[j].text || '',
-        years: years
-      })
+      // Só adiciona o modelo se tiver dados válidos
+      if (motorCycleModel.options[j] && motorCycleModel.options[j].text) {
+        models.push({
+          id: j,
+          name: motorCycleModel.options[j].text,
+          years: years
+        })
+      }
 
       years = []
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    brands.push({
-      id: i,
-      name: motorCycleBrand.options[i].text || '',
-      models: models
-    })
+    // Só adiciona a marca se tiver dados válidos
+    if (motorCycleBrand.options[i] && motorCycleBrand.options[i].text) {
+      brands.push({
+        id: i,
+        name: motorCycleBrand.options[i].text,
+        models: models
+      })
+    }
 
     models = []
     await new Promise(resolve => setTimeout(resolve, 500))
