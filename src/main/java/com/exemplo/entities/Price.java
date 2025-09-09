@@ -16,11 +16,14 @@ public class Price extends PanacheEntity {
 	@JoinColumn(name = "model_year_id", nullable = false)
 	public ModelYear modelYear;
 
-	@Column(name = "reference_month", nullable = false, length = 7)
-	public String referenceMonth; // YYYY-MM
+	@Column(name = "reference_month", nullable = false, length = 50)
+	public String referenceMonth; // Formato: "setembro de 2025"
 
 	@Column(name = "value", nullable = false, precision = 12, scale = 2)
 	public BigDecimal value;
+
+	@Column(name = "authentication", nullable = false, length = 64)
+	public String authentication;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false, length = 3)

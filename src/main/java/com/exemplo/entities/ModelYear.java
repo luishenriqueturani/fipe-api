@@ -33,6 +33,12 @@ public class ModelYear extends PanacheEntity {
 	@Column(name = "year_code", nullable = false, length = 16)
 	public String yearCode;
 
+	@Column(name = "fipe_code", nullable = false, length = 32)
+	public String fipeCode;
+
+	@Column(name = "authentication", nullable = false, length = 64)
+	public String authentication;
+
 	@Column(name = "created_at", nullable = false)
 	public LocalDateTime createdAt;
 
