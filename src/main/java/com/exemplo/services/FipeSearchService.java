@@ -163,6 +163,70 @@ public class FipeSearchService {
     return new FipeSearchDtos.PaginatedResponse<>(brandResponses, meta);
   }
 
+  public FipeSearchDtos.PaginatedResponse<FipeSearchDtos.ModelResponse> searchModels(
+      String name, String brandName, String vehicleTypeName, String modelBase, String version, 
+      int page, int pageSize) {
+    
+    String searchPattern = "%" + name.trim().toLowerCase() + "%";
+    
+    PanacheQuery<Model> query;
+    StringBuilder queryBuilder = new StringBuilder("LOWER(name) LIKE ?1 AND deletedAt IS NULL");
+    int paramIndex = 2;
+    
+    // Construir query dinamicamente baseado nos filtros fornecidos
+    if (brandName != null && !brandName.trim().isEmpty()) {
+      queryBuilder.append(" AND LOWER(brand.name) LIKE ?").append(paramIndex++);
+    }
+    
+    if (vehicleTypeName != null && !vehicleTypeName.trim().isEmpty()) {
+      queryBuilder.append(" AND LOWER(brand.vehicleType.name) LIKE ?").append(paramIndex++);
+    }
+    
+    if (modelBase != null && !modelBase.trim().isEmpty()) {
+      queryBuilder.append(" AND LOWER(model) LIKE ?").append(paramIndex++);
+    }
+    
+    if (version != null && !version.trim().isEmpty()) {
+      queryBuilder.append(" AND LOWER(version) LIKE ?").append(paramIndex++);
+    }
+    
+    queryBuilder.append(" ORDER BY name ASC");
+    
+    // Construir array de parâmetros
+    List<Object> params = new java.util.ArrayList<>();
+    params.add(searchPattern);
+    
+    if (brandName != null && !brandName.trim().isEmpty()) {
+      params.add("%" + brandName.trim().toLowerCase() + "%");
+    }
+    
+    if (vehicleTypeName != null && !vehicleTypeName.trim().isEmpty()) {
+      params.add("%" + vehicleTypeName.trim().toLowerCase() + "%");
+    }
+    
+    if (modelBase != null && !modelBase.trim().isEmpty()) {
+      params.add("%" + modelBase.trim().toLowerCase() + "%");
+    }
+    
+    if (version != null && !version.trim().isEmpty()) {
+      params.add("%" + version.trim().toLowerCase() + "%");
+    }
+    
+    query = Model.find(queryBuilder.toString(), params.toArray());
+    
+    long totalItems = query.count();
+    List<Model> models = query.page(Page.of(page - 1, pageSize)).list();
+    
+    // Carregar dados relacionados de forma eficiente
+    List<FipeSearchDtos.ModelResponse> modelResponses = models.stream()
+        .map(this::toModelResponse)
+        .collect(Collectors.toList());
+    
+    FipeSearchDtos.PaginationMeta meta = new FipeSearchDtos.PaginationMeta(page, pageSize, totalItems);
+    
+    return new FipeSearchDtos.PaginatedResponse<>(modelResponses, meta);
+  }
+
   private FipeSearchDtos.PriceResponse toPriceResponse(Price price) {
     FipeSearchDtos.PriceResponse response = new FipeSearchDtos.PriceResponse();
     response.id = price.id;

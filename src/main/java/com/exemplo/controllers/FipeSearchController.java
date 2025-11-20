@@ -112,5 +112,57 @@ public class FipeSearchController {
           .build();
     }
   }
+
+  @GET
+  @Path("/models/search")
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed({API_CLIENT, ADMIN})
+  public Response searchModels(
+      @QueryParam("name") String name,
+      @QueryParam("brand") String brand,
+      @QueryParam("vehicleType") String vehicleType,
+      @QueryParam("model") String modelBase,
+      @QueryParam("version") String version,
+      @QueryParam("page") @DefaultValue("1") int page,
+      @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
+    try {
+      LOG.info("Buscando modelos com nome: " + name + 
+          (brand != null ? " (marca: " + brand + ")" : "") +
+          (vehicleType != null ? " (tipo: " + vehicleType + ")" : "") +
+          (modelBase != null ? " (modelo base: " + modelBase + ")" : "") +
+          (version != null ? " (versão: " + version + ")" : "") +
+          " (page: " + page + ", pageSize: " + pageSize + ")");
+
+      if (name == null || name.trim().isEmpty()) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity("{\"error\": \"Parâmetro 'name' é obrigatório\"}")
+            .build();
+      }
+
+      if (page < 1) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity("{\"error\": \"Parâmetro 'page' deve ser maior ou igual a 1\"}")
+            .build();
+      }
+
+      if (pageSize < 1 || pageSize > 100) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity("{\"error\": \"Parâmetro 'pageSize' deve estar entre 1 e 100\"}")
+            .build();
+      }
+
+      FipeSearchDtos.PaginatedResponse<FipeSearchDtos.ModelResponse> result = 
+          fipeSearchService.searchModels(name, brand, vehicleType, modelBase, version, page, pageSize);
+
+      LOG.info("Encontrados " + result.meta.totalItems + " modelos (página " + page + " de " + result.meta.totalPages + ")");
+      return Response.ok(result).build();
+
+    } catch (Exception e) {
+      LOG.error("Erro ao buscar modelos", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity("{\"error\": \"Erro interno do servidor: " + e.getMessage() + "\"}")
+          .build();
+    }
+  }
 }
 
