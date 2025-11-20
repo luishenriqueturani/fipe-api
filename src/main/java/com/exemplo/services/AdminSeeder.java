@@ -1,14 +1,13 @@
 package com.exemplo.services;
 
 import com.exemplo.entities.AdminUser;
-import io.quarkus.runtime.Startup;
-import jakarta.annotation.PostConstruct;
+import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-@Startup
 public class AdminSeeder {
 
 	private static final Logger LOG = Logger.getLogger(AdminSeeder.class);
@@ -18,9 +17,8 @@ public class AdminSeeder {
 	private static final String DEFAULT_ADMIN_NAME = "Administrador";
 	private static final String DEFAULT_ADMIN_USERNAME = "admin";
 
-	@PostConstruct
 	@Transactional
-	public void onStart() {
+	void onStart(@Observes StartupEvent ev) {
 		LOG.info("Verificando se usuário admin padrão existe...");
 
 		AdminUser existingAdmin = AdminUser.find("email = ?1", DEFAULT_ADMIN_EMAIL).firstResult();

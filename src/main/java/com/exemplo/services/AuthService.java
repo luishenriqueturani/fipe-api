@@ -51,7 +51,7 @@ public class AuthService {
                 .groups(AppRole.API_CLIENT.role())
 				.claim("client_id", client.clientId)
 				.claim("token_version", client.tokenVersion)
-				.jti(session.tokenJti)
+				.claim("jti", session.tokenJti)
 				.jws()
 				.keyId(key.kid())
 				.sign(key.privateKey());
@@ -90,7 +90,7 @@ public class AuthService {
                 .groups(AppRole.ADMIN.role())
 				.claim("admin_id", admin.id)
 				.claim("username", admin.username)
-				.jti(session.tokenJti)
+				.claim("jti", session.tokenJti)
 				.jws()
 				.keyId(key.kid())
 				.sign(key.privateKey());

@@ -2,8 +2,10 @@ package com.exemplo.services;
 
 import com.exemplo.entities.JwtKey;
 import com.exemplo.security.PemUtils;
-import io.quarkus.runtime.Startup;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.transaction.Transactional;
 
 import java.security.PrivateKey;
@@ -16,12 +18,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-@Startup
 public class JwtKeyService {
 	private final Map<String, CachedKey> cacheByKid = new ConcurrentHashMap<>();
 
 	@Transactional
+	void onStart(@Observes @Priority(100) StartupEvent ev) {
+		warmUp();
+	}
+
+	@Transactional
 	public void warmUp() {
+		cacheByKid.clear();
 		List<JwtKey> keys = JwtKey.listAll();
 		for (JwtKey k : keys) {
 			cacheByKid.put(k.kid, toCached(k));

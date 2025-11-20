@@ -4,8 +4,12 @@ import com.exemplo.dto.FipeDataDtos;
 import com.exemplo.dto.FipeDataDtos.*;
 import com.exemplo.entities.*;
 import com.exemplo.enums.Currency;
+import io.quarkus.hibernate.orm.panache.Panache;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
+import org.hibernate.exception.ConstraintViolationException;
 import org.jboss.logging.Logger;
 
 import java.time.LocalDateTime;
@@ -24,7 +28,7 @@ public class FipeDataService {
   // "2022 Diesel")
   private static final Pattern MODEL_YEAR_PATTERN = Pattern.compile("^(\\d{4})\\s+(.+)$");
 
-  @Transactional
+  @Transactional(dontRollbackOn = {PersistenceException.class})
   public void processFipeData(FipeDataRequest request) {
     LOG.info("Iniciando processamento dos dados da FIPE");
 
@@ -57,6 +61,11 @@ public class FipeDataService {
 
   private void processVehicleType(List<? extends VehicleData> vehicles, String vehicleTypeName) {
     VehicleType vehicleType = getOrCreateVehicleType(vehicleTypeName);
+    EntityManager em = Panache.getEntityManager();
+    int processedCount = 0;
+    int flushInterval = 50; // Flush a cada 50 registros
+
+    LOG.info("Processando " + vehicleTypeName + " - Total de veículos: " + vehicles.size());
 
     for (VehicleData vehicle : vehicles) {
       Brand brand = getOrCreateBrand(vehicleType, vehicle.getName(), vehicle.getId().toString());
@@ -72,9 +81,23 @@ public class FipeDataService {
         for (Year year : model.years) {
           ModelYear modelYear = getOrCreateModelYear(modelEntity, year);
           createOrUpdatePrice(modelYear, year);
+          
+          processedCount++;
+          
+          // Fazer flush periódico para liberar memória e evitar timeout
+          if (processedCount % flushInterval == 0) {
+            em.flush();
+            em.clear();
+            LOG.info("Processados " + processedCount + " registros de " + vehicleTypeName);
+          }
         }
       }
     }
+    
+    // Flush final
+    em.flush();
+    em.clear();
+    LOG.info("Concluído processamento de " + vehicleTypeName + " - Total: " + processedCount + " registros");
   }
 
   private VehicleType getOrCreateVehicleType(String name) {
@@ -185,10 +208,38 @@ public class FipeDataService {
   }
 
   private ModelYear getOrCreateModelYear(com.exemplo.entities.Model model, Year year) {
-    // Buscar por model + fipeCode (identificador único do ModelYear)
+    // Preparar yearCode truncado
+    String truncatedYearCode = truncateToLength(year.modelYear, 16);
+    
+    // Primeiro, buscar por model + fipeCode (mais específico)
     ModelYear modelYear = ModelYear.find("model.id = ?1 and fipeCode = ?2 and deletedAt is null",
         model.id, year.fipeCode).firstResult();
 
+    // Se não encontrou por fipeCode, buscar por (model_id, year_code) - constraint única
+    if (modelYear == null) {
+      modelYear = ModelYear.find("model.id = ?1 and yearCode = ?2 and deletedAt is null",
+          model.id, truncatedYearCode).firstResult();
+      
+      // Se encontrou por yearCode mas fipeCode é diferente, atualizar o fipeCode
+      if (modelYear != null && !modelYear.fipeCode.equals(year.fipeCode)) {
+        modelYear.fipeCode = year.fipeCode;
+        modelYear.authentication = year.authentication;
+        try {
+          modelYear.persist();
+          LOG.info("Atualizado fipeCode do ModelYear existente: " + year.modelYear + " com novo fipeCode: " + year.fipeCode);
+        } catch (PersistenceException e) {
+          if (e.getCause() instanceof ConstraintViolationException) {
+            LOG.warn("Constraint violation ao atualizar fipeCode: " + e.getMessage());
+            // Recarregar do banco
+            modelYear = ModelYear.findById(modelYear.id);
+          } else {
+            throw e;
+          }
+        }
+      }
+    }
+
+    // Se ainda não encontrou, criar novo
     if (modelYear == null) {
       modelYear = new ModelYear();
       modelYear.model = model;
@@ -200,19 +251,61 @@ public class FipeDataService {
       if (matcher.matches()) {
         modelYear.yearModel = Integer.parseInt(matcher.group(1));
         String fuelInfo = matcher.group(2);
-        modelYear.fuelName = fuelInfo;
+        modelYear.fuelName = truncateToLength(fuelInfo, 50);
         modelYear.fuelCode = generateFuelCode(fuelInfo);
-        modelYear.yearCode = year.modelYear;
+        modelYear.yearCode = truncatedYearCode;
       } else {
         // Fallback se não conseguir extrair
         modelYear.yearModel = 0;
-        modelYear.fuelName = year.modelYear;
+        modelYear.fuelName = truncateToLength(year.modelYear, 50);
         modelYear.fuelCode = "UNK";
-        modelYear.yearCode = year.modelYear;
+        modelYear.yearCode = truncatedYearCode;
       }
 
-      modelYear.persist();
-      LOG.info("Criado novo ano de modelo: " + year.modelYear + " com fipeCode: " + year.fipeCode);
+      // Verificar novamente antes de persistir para evitar constraint violations
+      ModelYear existingCheck = ModelYear.find("model.id = ?1 and yearCode = ?2 and deletedAt is null",
+          model.id, truncatedYearCode).firstResult();
+      
+      if (existingCheck != null) {
+        // Se já existe, usar o registro existente e atualizar fipeCode se necessário
+        modelYear = existingCheck;
+        if (!modelYear.fipeCode.equals(year.fipeCode)) {
+          modelYear.fipeCode = year.fipeCode;
+          modelYear.authentication = year.authentication;
+          try {
+            modelYear.persist();
+          } catch (PersistenceException e) {
+            if (e.getCause() instanceof ConstraintViolationException) {
+              LOG.warn("Constraint violation ao atualizar fipeCode do existingCheck: " + e.getMessage());
+              modelYear = ModelYear.findById(existingCheck.id);
+            } else {
+              throw e;
+            }
+          }
+        }
+        LOG.info("Usando ModelYear existente: " + year.modelYear + " com fipeCode: " + year.fipeCode);
+      } else {
+        try {
+          modelYear.persist();
+          LOG.info("Criado novo ano de modelo: " + year.modelYear + " com fipeCode: " + year.fipeCode);
+        } catch (PersistenceException e) {
+          // Se falhar devido a constraint violation (race condition), buscar o registro existente
+          if (e.getCause() instanceof ConstraintViolationException) {
+            LOG.warn("Constraint violation ao criar ModelYear, buscando registro existente: " + e.getMessage());
+            ModelYear existing = ModelYear.find("model.id = ?1 and yearCode = ?2 and deletedAt is null",
+                model.id, truncatedYearCode).firstResult();
+            if (existing != null) {
+              modelYear = existing;
+              LOG.info("Usando ModelYear existente após constraint violation: " + year.modelYear);
+            } else {
+              LOG.error("Constraint violation mas não foi possível encontrar registro existente");
+              throw e;
+            }
+          } else {
+            throw e;
+          }
+        }
+      }
     } else {
       // Atualizar dados se necessário
       boolean updated = false;
@@ -233,23 +326,51 @@ public class FipeDataService {
           modelYear.yearModel = newYearModel;
           updated = true;
         }
-        if (!modelYear.fuelName.equals(newFuelInfo)) {
-          modelYear.fuelName = newFuelInfo;
+        String truncatedFuelName = truncateToLength(newFuelInfo, 50);
+        if (!modelYear.fuelName.equals(truncatedFuelName)) {
+          modelYear.fuelName = truncatedFuelName;
           updated = true;
         }
         if (!modelYear.fuelCode.equals(newFuelCode)) {
           modelYear.fuelCode = newFuelCode;
           updated = true;
         }
-        if (!modelYear.yearCode.equals(year.modelYear)) {
-          modelYear.yearCode = year.modelYear;
-          updated = true;
+        // Só atualizar yearCode se não violar a constraint única
+        if (!modelYear.yearCode.equals(truncatedYearCode)) {
+          // Verificar se já existe outro registro com o mesmo (model_id, year_code)
+          ModelYear existingByYearCode = ModelYear.find(
+              "model.id = ?1 and yearCode = ?2 and id != ?3 and deletedAt is null",
+              model.id, truncatedYearCode, modelYear.id).firstResult();
+          
+          if (existingByYearCode == null) {
+            modelYear.yearCode = truncatedYearCode;
+            updated = true;
+          } else {
+            // Se já existe, apenas logar o conflito mas não atualizar
+            LOG.warn("Não foi possível atualizar yearCode de " + modelYear.yearCode + 
+                " para " + truncatedYearCode + " porque já existe outro registro com o mesmo (model_id, year_code)");
+          }
         }
       }
 
       if (updated) {
-        modelYear.persist();
-        LOG.info("Atualizado ano de modelo: " + year.modelYear);
+        try {
+          modelYear.persist();
+          LOG.info("Atualizado ano de modelo: " + year.modelYear);
+        } catch (PersistenceException e) {
+          // Se falhar devido a constraint violation no update
+          if (e.getCause() instanceof ConstraintViolationException) {
+            LOG.warn("Constraint violation ao atualizar ModelYear: " + e.getMessage());
+            // Recarregar o registro do banco
+            modelYear = ModelYear.findById(modelYear.id);
+            if (modelYear == null) {
+              LOG.error("ModelYear não encontrado após constraint violation");
+              throw e;
+            }
+          } else {
+            throw e;
+          }
+        }
       }
     }
     return modelYear;
@@ -400,5 +521,18 @@ public class FipeDataService {
     public List<FipeDataDtos.Model> getModels() {
       return motorCycle.models;
     }
+  }
+
+  /**
+   * Trunca uma string para o tamanho máximo especificado
+   */
+  private String truncateToLength(String value, int maxLength) {
+    if (value == null) {
+      return null;
+    }
+    if (value.length() <= maxLength) {
+      return value;
+    }
+    return value.substring(0, maxLength);
   }
 }
