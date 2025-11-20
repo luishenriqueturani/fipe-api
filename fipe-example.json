@@ -1,0 +1,83 @@
+{
+  "cars": [
+    {
+      "id": 1,
+      "name": "Acura",
+      "models": [
+        {
+          "id": 1,
+          "name": "Integra GS 1.8",
+          "years": [
+            {
+              "referenceMonth": "setembro de 2025",
+              "fipeCode": "038003-2",
+              "brand": "Acura",
+              "model": "Integra GS 1.8",
+              "modelYear": "1992 Gasolina",
+              "authentication": "ghs7m37lbc",
+              "queryDate": "terça-feira, 2 de setembro de 2025 09:33",
+              "averagePrice": {
+                "value": 11043,
+                "formattedValue": "R$ 11.043,00"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "trucks": [
+    {
+      "id": 1,
+      "name": "AGRALE",
+      "models": [
+        {
+          "id": 1,
+          "name": "10000 / 10000 S 2p (diesel) (E5)",
+          "years": [
+            {
+              "referenceMonth": "setembro de 2025",
+              "fipeCode": "501034-9",
+              "brand": "AGRALE",
+              "model": "10000 / 10000 S  2p (diesel) (E5)",
+              "modelYear": "2022 Diesel",
+              "authentication": "mmlkr18wlldnc",
+              "queryDate": "terça-feira, 2 de setembro de 2025 13:07",
+              "averagePrice": {
+                "value": 245859,
+                "formattedValue": "R$ 245.859,00"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "motorCycles": [
+    {
+      "id": 1,
+      "name": "ADLY",
+      "models": [
+        {
+          "id": 1,
+          "name": "ATV 100",
+          "years": [
+            {
+              "referenceMonth": "setembro de 2025",
+              "fipeCode": "840015-6",
+              "brand": "ADLY",
+              "model": "ATV 100",
+              "modelYear": "2002 Gasolina",
+              "authentication": "sk8n8k2mzgq",
+              "queryDate": "terça-feira, 2 de setembro de 2025 16:32",
+              "averagePrice": {
+                "value": 3769,
+                "formattedValue": "R$ 3.769,00"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
