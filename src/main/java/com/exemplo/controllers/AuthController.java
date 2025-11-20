@@ -38,7 +38,7 @@ public class AuthController {
 			userAgent = "unknown";
 		}
 
-		String jwt = authService.issueTokenForClient(tokenRequest.clientId, tokenRequest.clientSecret, ipAddress, userAgent);
+		String jwt = authService.issueTokenForClient(tokenRequest.email, tokenRequest.password, ipAddress, userAgent);
 		if (jwt == null) {
 			return Response.status(Response.Status.UNAUTHORIZED).build();
 		}

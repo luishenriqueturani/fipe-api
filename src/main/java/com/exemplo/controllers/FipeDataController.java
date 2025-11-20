@@ -12,7 +12,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
-import static com.exemplo.security.SecurityRoles.API_CLIENT;
+import static com.exemplo.security.SecurityRoles.ADMIN;
 
 @Path("/fipe-data")
 public class FipeDataController {
@@ -26,7 +26,7 @@ public class FipeDataController {
   @Path("/update")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  @RolesAllowed(API_CLIENT)
+  @RolesAllowed(ADMIN)
   public Response updateFipeData(FipeDataRequest request) {
     try {
       LOG.info("Recebida requisição para atualizar dados da FIPE");

@@ -6,6 +6,8 @@ import com.exemplo.dto.SessionDtos;
 import com.exemplo.entities.Session;
 import com.exemplo.services.AuthService;
 import com.exemplo.services.SessionService;
+import io.smallrye.jwt.auth.principal.DefaultJWTParser;
+import io.smallrye.jwt.auth.principal.ParseException;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -37,9 +39,9 @@ public class AdminController {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response login(AdminLoginRequest request, @Context HttpHeaders headers) {
-		if (request == null || request.username == null || request.password == null) {
+		if (request == null || request.email == null || request.password == null) {
 			return Response.status(Response.Status.BAD_REQUEST)
-					.entity("{\"error\": \"Username e password são obrigatórios\"}")
+					.entity("{\"error\": \"Email e password são obrigatórios\"}")
 					.build();
 		}
 
@@ -55,7 +57,7 @@ public class AdminController {
 			userAgent = "unknown";
 		}
 
-		String jwt = authService.issueTokenForAdmin(request.username, request.password, ipAddress, userAgent);
+		String jwt = authService.issueTokenForAdmin(request.email, request.password, ipAddress, userAgent);
 		if (jwt == null) {
 			return Response.status(Response.Status.UNAUTHORIZED)
 					.entity("{\"error\": \"Credenciais inválidas\"}")
@@ -103,10 +105,37 @@ public class AdminController {
 	}
 
 	@POST
-	@Path("/sessions/{tokenJti}/logout")
+	@Path("/sessions/logout")
 	@Produces(MediaType.APPLICATION_JSON)
 	@RolesAllowed(ADMIN)
-	public Response logoutSession(@PathParam("tokenJti") String tokenJti) {
+	public Response logoutSession(@Context HttpHeaders headers) {
+		String auth = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
+		if (auth == null || !auth.toLowerCase().startsWith("bearer ")) {
+			return Response.status(Response.Status.UNAUTHORIZED)
+					.entity("{\"error\": \"Token de autenticação não fornecido\"}")
+					.build();
+		}
+
+		String token = auth.substring(7);
+		String tokenJti = null;
+		try {
+			var jwt = new DefaultJWTParser().parse(token);
+			Object jti = jwt.getClaim("jti");
+			if (jti != null) {
+				tokenJti = jti.toString();
+			}
+		} catch (ParseException e) {
+			return Response.status(Response.Status.UNAUTHORIZED)
+					.entity("{\"error\": \"Token inválido\"}")
+					.build();
+		}
+
+		if (tokenJti == null) {
+			return Response.status(Response.Status.BAD_REQUEST)
+					.entity("{\"error\": \"Token não contém identificador de sessão\"}")
+					.build();
+		}
+
 		sessionService.logoutSession(tokenJti);
 		return Response.ok("{\"message\": \"Sessão encerrada com sucesso\"}").build();
 	}

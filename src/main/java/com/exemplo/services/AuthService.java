@@ -25,13 +25,13 @@ public class AuthService {
 	}
 
 	@Transactional
-	public String issueTokenForClient(String clientId, String clientSecret, String ipAddress, String userAgent) {
-		ApiClient client = ApiClient.find("clientId = ?1 and isActive = true", clientId).firstResult();
+	public String issueTokenForClient(String email, String password, String ipAddress, String userAgent) {
+		ApiClient client = ApiClient.find("email = ?1 and isActive = true", email).firstResult();
 		if (client == null) {
 			return null;
 		}
 		// Em produção, compare hash
-		if (!client.clientSecret.equals(clientSecret)) {
+		if (!client.clientSecret.equals(password)) {
 			return null;
 		}
 
@@ -60,8 +60,8 @@ public class AuthService {
 	}
 
 	@Transactional
-	public String issueTokenForAdmin(String username, String password, String ipAddress, String userAgent) {
-		AdminUser admin = AdminUser.find("username = ?1 and isActive = true and deletedAt is null", username).firstResult();
+	public String issueTokenForAdmin(String email, String password, String ipAddress, String userAgent) {
+		AdminUser admin = AdminUser.find("email = ?1 and isActive = true and deletedAt is null", email).firstResult();
 		if (admin == null) {
 			return null;
 		}

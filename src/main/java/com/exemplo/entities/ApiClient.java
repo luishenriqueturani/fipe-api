@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "api_client", uniqueConstraints = {
-		@UniqueConstraint(name = "uk_api_client_client_id", columnNames = {"client_id"})
+		@UniqueConstraint(name = "uk_api_client_client_id", columnNames = {"client_id"}),
+		@UniqueConstraint(name = "uk_api_client_email", columnNames = {"email"})
 })
 public class ApiClient extends PanacheEntity {
 	@Column(name = "name", nullable = false, length = 150)
@@ -20,6 +21,9 @@ public class ApiClient extends PanacheEntity {
 
 	@Column(name = "client_id", nullable = false, length = 64)
 	public String clientId;
+
+	@Column(name = "email", nullable = false, length = 255)
+	public String email;
 
 	@Column(name = "client_secret", nullable = false, length = 200)
 	public String clientSecret; // Em produção, armazene hash

@@ -4,12 +4,12 @@ public final class AuthDtos {
 	private AuthDtos() {}
 
 	public static class TokenRequest {
-		public String clientId;
-		public String clientSecret;
+		public String email;
+		public String password;
 	}
 
 	public static class AdminLoginRequest {
-		public String username;
+		public String email;
 		public String password;
 	}
 
