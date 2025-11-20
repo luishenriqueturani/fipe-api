@@ -11,6 +11,7 @@ import org.jboss.logging.Logger;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,7 +62,12 @@ public class FipeDataService {
       Brand brand = getOrCreateBrand(vehicleType, vehicle.getName(), vehicle.getId().toString());
 
       for (FipeDataDtos.Model model : vehicle.getModels()) {
-        com.exemplo.entities.Model modelEntity = getOrCreateModel(brand, model.name, model.id.toString());
+        // Obter o primeiro fipeCode dos years para usar no Model (já que cada year tem seu próprio fipeCode)
+        String modelFipeCode = model.years != null && !model.years.isEmpty() 
+            ? extractBaseFipeCode(model.years.get(0).fipeCode) 
+            : model.id.toString();
+        
+        com.exemplo.entities.Model modelEntity = getOrCreateModel(brand, model.name, model.id.toString(), modelFipeCode);
 
         for (Year year : model.years) {
           ModelYear modelYear = getOrCreateModelYear(modelEntity, year);
@@ -103,29 +109,83 @@ public class FipeDataService {
     return brand;
   }
 
-  private com.exemplo.entities.Model getOrCreateModel(Brand brand, String name, String externalCode) {
+  private com.exemplo.entities.Model getOrCreateModel(Brand brand, String name, String externalCode, String fipeCode) {
+    // Buscar por brand + name (mais confiável que apenas name)
     com.exemplo.entities.Model model = com.exemplo.entities.Model.find(
         "brand.id = ?1 and name = ?2 and deletedAt is null", brand.id, name).firstResult();
 
+    // Separar modelo e versão do nome completo
+    ModelVersionParser.ParseResult parseResult = ModelVersionParser.parse(name);
+
     if (model == null) {
+      // Verificar se já existe um modelo com o mesmo fipeCode (para evitar duplicação)
+      com.exemplo.entities.Model existingByFipeCode = com.exemplo.entities.Model.find(
+          "fipeCode = ?1 and deletedAt is null", fipeCode).firstResult();
+      
+      if (existingByFipeCode != null) {
+        LOG.warn("Modelo com fipeCode " + fipeCode + " já existe, mas com nome diferente. Usando existente.");
+        // Atualizar nome, modelo e versão mesmo se já existir
+        boolean updated = false;
+        if (!existingByFipeCode.name.equals(name)) {
+          existingByFipeCode.name = name;
+          updated = true;
+        }
+        if (existingByFipeCode.model == null || !existingByFipeCode.model.equals(parseResult.model)) {
+          existingByFipeCode.model = parseResult.model;
+          updated = true;
+        }
+        String versionToSet = parseResult.version.isEmpty() ? null : parseResult.version;
+        if ((existingByFipeCode.version == null && versionToSet != null) || 
+            (existingByFipeCode.version != null && !existingByFipeCode.version.equals(versionToSet))) {
+          existingByFipeCode.version = versionToSet;
+          updated = true;
+        }
+        if (updated) {
+          existingByFipeCode.persist();
+          LOG.info("Atualizado modelo existente (por fipeCode): " + name + " (model: " + parseResult.model + ", version: " + parseResult.version + ")");
+        }
+        return existingByFipeCode;
+      }
+      
       model = new com.exemplo.entities.Model();
       model.brand = brand;
       model.name = name;
-      model.fipeCode = externalCode; // Usando o ID como fipeCode temporariamente
+      model.model = parseResult.model;
+      model.version = parseResult.version.isEmpty() ? null : parseResult.version;
+      model.fipeCode = fipeCode;
       model.persist();
-      LOG.info("Criado novo modelo: " + name);
+      LOG.info("Criado novo modelo: " + name + " (model: " + parseResult.model + ", version: " + parseResult.version + ") com fipeCode: " + fipeCode);
     } else {
-      // Atualizar nome se necessário
+      // Atualizar nome, modelo, versão e fipeCode se necessário
+      boolean updated = false;
       if (!model.name.equals(name)) {
         model.name = name;
+        updated = true;
+      }
+      if (model.model == null || !model.model.equals(parseResult.model)) {
+        model.model = parseResult.model;
+        updated = true;
+      }
+      String versionToSet = parseResult.version.isEmpty() ? null : parseResult.version;
+      if ((model.version == null && versionToSet != null) || 
+          (model.version != null && !model.version.equals(versionToSet))) {
+        model.version = versionToSet;
+        updated = true;
+      }
+      if (!model.fipeCode.equals(fipeCode)) {
+        model.fipeCode = fipeCode;
+        updated = true;
+      }
+      if (updated) {
         model.persist();
-        LOG.info("Atualizado modelo: " + name);
+        LOG.info("Atualizado modelo: " + name + " (model: " + parseResult.model + ", version: " + parseResult.version + ")");
       }
     }
     return model;
   }
 
   private ModelYear getOrCreateModelYear(com.exemplo.entities.Model model, Year year) {
+    // Buscar por model + fipeCode (identificador único do ModelYear)
     ModelYear modelYear = ModelYear.find("model.id = ?1 and fipeCode = ?2 and deletedAt is null",
         model.id, year.fipeCode).firstResult();
 
@@ -152,13 +212,39 @@ public class FipeDataService {
       }
 
       modelYear.persist();
-      LOG.info("Criado novo ano de modelo: " + year.modelYear);
+      LOG.info("Criado novo ano de modelo: " + year.modelYear + " com fipeCode: " + year.fipeCode);
     } else {
       // Atualizar dados se necessário
       boolean updated = false;
+      
       if (!modelYear.authentication.equals(year.authentication)) {
         modelYear.authentication = year.authentication;
         updated = true;
+      }
+      
+      // Verificar se os dados do ano/combustível mudaram
+      Matcher matcher = MODEL_YEAR_PATTERN.matcher(year.modelYear);
+      if (matcher.matches()) {
+        int newYearModel = Integer.parseInt(matcher.group(1));
+        String newFuelInfo = matcher.group(2);
+        String newFuelCode = generateFuelCode(newFuelInfo);
+        
+        if (!modelYear.yearModel.equals(newYearModel)) {
+          modelYear.yearModel = newYearModel;
+          updated = true;
+        }
+        if (!modelYear.fuelName.equals(newFuelInfo)) {
+          modelYear.fuelName = newFuelInfo;
+          updated = true;
+        }
+        if (!modelYear.fuelCode.equals(newFuelCode)) {
+          modelYear.fuelCode = newFuelCode;
+          updated = true;
+        }
+        if (!modelYear.yearCode.equals(year.modelYear)) {
+          modelYear.yearCode = year.modelYear;
+          updated = true;
+        }
       }
 
       if (updated) {
@@ -223,13 +309,25 @@ public class FipeDataService {
     }
   }
 
+  /**
+   * Extrai o código base do fipeCode (remove sufixos como "-2", "-9" para usar no Model)
+   * Exemplo: "038003-2" -> "038003"
+   */
+  private String extractBaseFipeCode(String fipeCode) {
+    if (fipeCode == null || fipeCode.isEmpty()) {
+      return fipeCode;
+    }
+    int dashIndex = fipeCode.indexOf('-');
+    return dashIndex > 0 ? fipeCode.substring(0, dashIndex) : fipeCode;
+  }
+
   private LocalDateTime parseQueryDate(String queryDate) {
     try {
       // Formato: "terça-feira, 2 de setembro de 2025 09:33"
-      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM 'de' yyyy HH:mm");
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM 'de' yyyy HH:mm", new Locale("pt", "BR"));
       return LocalDateTime.parse(queryDate, formatter);
     } catch (Exception e) {
-      LOG.warn("Erro ao fazer parse da data: " + queryDate + ", usando data atual");
+      LOG.warn("Erro ao fazer parse da data: " + queryDate + ", usando data atual", e);
       return LocalDateTime.now();
     }
   }

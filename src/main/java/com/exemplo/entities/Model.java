@@ -28,6 +28,12 @@ public class Model extends PanacheEntity {
 	@Column(name = "name", nullable = false, length = 150)
 	public String name;
 
+	@Column(name = "model", length = 100)
+	public String model;
+
+	@Column(name = "version", length = 100)
+	public String version;
+
 	@Column(name = "created_at", nullable = false)
 	public LocalDateTime createdAt;
 
