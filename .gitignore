@@ -42,3 +42,5 @@ target/generated-test-sources/
 
 # Quarkus
 .quarkus/
+
+*.js
