@@ -66,5 +66,51 @@ public class FipeSearchController {
           .build();
     }
   }
+
+  @GET
+  @Path("/brands/search")
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed({API_CLIENT, ADMIN})
+  public Response searchBrands(
+      @QueryParam("name") String name,
+      @QueryParam("vehicleType") String vehicleType,
+      @QueryParam("page") @DefaultValue("1") int page,
+      @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
+    try {
+      LOG.info("Buscando marcas com nome: " + name + 
+          (vehicleType != null ? " (tipo de veículo: " + vehicleType + ")" : "") + 
+          " (page: " + page + ", pageSize: " + pageSize + ")");
+
+      if (name == null || name.trim().isEmpty()) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity("{\"error\": \"Parâmetro 'name' é obrigatório\"}")
+            .build();
+      }
+
+      if (page < 1) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity("{\"error\": \"Parâmetro 'page' deve ser maior ou igual a 1\"}")
+            .build();
+      }
+
+      if (pageSize < 1 || pageSize > 100) {
+        return Response.status(Response.Status.BAD_REQUEST)
+            .entity("{\"error\": \"Parâmetro 'pageSize' deve estar entre 1 e 100\"}")
+            .build();
+      }
+
+      FipeSearchDtos.PaginatedResponse<FipeSearchDtos.BrandResponse> result = 
+          fipeSearchService.searchBrands(name, vehicleType, page, pageSize);
+
+      LOG.info("Encontradas " + result.meta.totalItems + " marcas (página " + page + " de " + result.meta.totalPages + ")");
+      return Response.ok(result).build();
+
+    } catch (Exception e) {
+      LOG.error("Erro ao buscar marcas", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity("{\"error\": \"Erro interno do servidor: " + e.getMessage() + "\"}")
+          .build();
+    }
+  }
 }
 

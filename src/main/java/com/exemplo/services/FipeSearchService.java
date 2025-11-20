@@ -128,6 +128,41 @@ public class FipeSearchService {
     return response;
   }
 
+  public FipeSearchDtos.PaginatedResponse<FipeSearchDtos.BrandResponse> searchBrands(
+      String name, String vehicleTypeName, int page, int pageSize) {
+    
+    String searchPattern = "%" + name.trim().toLowerCase() + "%";
+    
+    PanacheQuery<Brand> query;
+    
+    // Se vehicleTypeName foi fornecido, filtrar por tipo de veículo
+    if (vehicleTypeName != null && !vehicleTypeName.trim().isEmpty()) {
+      String vehicleTypePattern = "%" + vehicleTypeName.trim().toLowerCase() + "%";
+      // Filtrar por nome da marca e nome do tipo de veículo
+      query = Brand.find(
+          "LOWER(name) LIKE ?1 AND LOWER(vehicleType.name) LIKE ?2 AND deletedAt IS NULL ORDER BY name ASC",
+          searchPattern, vehicleTypePattern
+      );
+    } else {
+      query = Brand.find(
+          "LOWER(name) LIKE ?1 AND deletedAt IS NULL ORDER BY name ASC",
+          searchPattern
+      );
+    }
+    
+    long totalItems = query.count();
+    List<Brand> brands = query.page(Page.of(page - 1, pageSize)).list();
+    
+    // Carregar dados relacionados de forma eficiente
+    List<FipeSearchDtos.BrandResponse> brandResponses = brands.stream()
+        .map(this::toBrandResponse)
+        .collect(Collectors.toList());
+    
+    FipeSearchDtos.PaginationMeta meta = new FipeSearchDtos.PaginationMeta(page, pageSize, totalItems);
+    
+    return new FipeSearchDtos.PaginatedResponse<>(brandResponses, meta);
+  }
+
   private FipeSearchDtos.PriceResponse toPriceResponse(Price price) {
     FipeSearchDtos.PriceResponse response = new FipeSearchDtos.PriceResponse();
     response.id = price.id;
