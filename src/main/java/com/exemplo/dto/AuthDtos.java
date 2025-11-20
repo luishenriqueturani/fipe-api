@@ -8,6 +8,11 @@ public final class AuthDtos {
 		public String clientSecret;
 	}
 
+	public static class AdminLoginRequest {
+		public String username;
+		public String password;
+	}
+
 	public static class TokenResponse {
 		public String access_token;
 		public String token_type;
