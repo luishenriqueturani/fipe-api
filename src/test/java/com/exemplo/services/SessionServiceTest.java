@@ -26,7 +26,8 @@ class SessionServiceTest {
     @BeforeEach
     @Transactional
     void setUp() {
-        // Limpar dados de teste anteriores
+        // Limpar dados de teste anteriores (ordem importa devido a foreign keys)
+        com.exemplo.entities.ApiAccessLog.deleteAll();
         Session.deleteAll();
         ApiClient.delete("email = ?1", "test-client@test.com");
         AdminUser.delete("email = ?1", "test-admin@test.com");
