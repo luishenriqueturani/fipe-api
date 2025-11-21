@@ -2,14 +2,24 @@ package com.exemplo.services;
 
 import com.exemplo.entities.AdminUser;
 import com.exemplo.entities.ApiClient;
+import com.exemplo.entities.JwtKey;
 import com.exemplo.entities.Session;
+import com.exemplo.enums.JwtAlg;
+import com.exemplo.enums.KeyStatus;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.LocalDateTime;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,17 +32,24 @@ class AuthServiceTest {
     @Inject
     SessionService sessionService;
 
+    @Inject
+    JwtKeyService jwtKeyService;
+
     private ApiClient testClient;
     private AdminUser testAdmin;
 
     @BeforeEach
     @Transactional
-    void setUp() {
+    void setUp() throws Exception {
         // Limpar dados de teste anteriores (ordem importa devido a foreign keys)
         com.exemplo.entities.ApiAccessLog.deleteAll();
         Session.deleteAll();
         ApiClient.delete("email = ?1", "test-client@test.com");
         AdminUser.delete("email = ?1", "test-admin@test.com");
+        
+        // Limpar e criar chave JWT válida (necessária para issueToken)
+        JwtKey.deleteAll();
+        createValidJwtKey();
 
         // Criar cliente de teste
         testClient = new ApiClient();
@@ -53,6 +70,52 @@ class AuthServiceTest {
         testAdmin.isActive = true;
         testAdmin.deletedAt = null;
         testAdmin.persist();
+        
+        // Atualizar cache do JwtKeyService
+        jwtKeyService.warmUp();
+    }
+    
+    private void createValidJwtKey() throws Exception {
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(2048);
+        KeyPair keyPair = keyGen.generateKeyPair();
+        
+        JwtKey jwtKey = new JwtKey();
+        jwtKey.kid = "test-auth-key-" + System.currentTimeMillis();
+        jwtKey.alg = JwtAlg.RS256;
+        jwtKey.publicKeyPem = toPem(keyPair.getPublic());
+        jwtKey.privateKeyCiphertext = toPem(keyPair.getPrivate());
+        jwtKey.status = KeyStatus.ACTIVE;
+        jwtKey.createdAt = LocalDateTime.now();
+        jwtKey.persist();
+    }
+    
+    private String toPem(PublicKey key) {
+        byte[] encoded = key.getEncoded();
+        String base64 = Base64.getEncoder().encodeToString(encoded);
+        String header = key instanceof RSAPublicKey 
+                ? "-----BEGIN PUBLIC KEY-----\n" 
+                : "-----BEGIN PUBLIC KEY-----\n";
+        String footer = "\n-----END PUBLIC KEY-----";
+        return header + chunkString(base64, 64) + footer;
+    }
+    
+    private String toPem(PrivateKey key) {
+        byte[] encoded = key.getEncoded();
+        String base64 = Base64.getEncoder().encodeToString(encoded);
+        return "-----BEGIN PRIVATE KEY-----\n" + chunkString(base64, 64) + "\n-----END PRIVATE KEY-----";
+    }
+    
+    private String chunkString(String str, int chunkSize) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < str.length(); i += chunkSize) {
+            if (i > 0) {
+                sb.append("\n");
+            }
+            int end = Math.min(i + chunkSize, str.length());
+            sb.append(str.substring(i, end));
+        }
+        return sb.toString();
     }
 
     @Test

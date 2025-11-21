@@ -1,6 +1,10 @@
 package com.exemplo.entities;
 
+import com.exemplo.JwtKeyCleanupTestResource;
+import com.exemplo.services.JwtKeyService;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
 import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +16,11 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
+@QuarkusTestResource(JwtKeyCleanupTestResource.class)
 class EntityTest {
+
+    @Inject
+    JwtKeyService jwtKeyService;
 
     @BeforeEach
     @Transactional
@@ -23,7 +31,16 @@ class EntityTest {
         ApiClient.deleteAll();
         AdminUser.deleteAll();
         // Limpar JwtKey antes de outros para evitar problemas com warmUp
+        // Deletar todas as chaves, incluindo as que podem ter sido criadas pelo seeder no startup
         JwtKey.deleteAll();
+        // Atualizar o cache do JwtKeyService após limpar as chaves
+        // Isso garante que o cache não tenha referências a chaves inválidas
+        try {
+            jwtKeyService.warmUp();
+        } catch (Exception e) {
+            // Ignorar erros de warmUp se não houver chaves válidas
+            // O cache ficará vazio, o que é aceitável para estes testes
+        }
         Price.deleteAll();
         ModelYear.deleteAll();
         Model.deleteAll();
