@@ -2,6 +2,7 @@ package com.exemplo.controllers;
 
 import com.exemplo.dto.AuthDtos;
 import com.exemplo.services.AuthService;
+import com.exemplo.services.MetricsService;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
@@ -24,6 +25,9 @@ class AuthControllerTest {
 
     @Mock
     private Request request;
+
+    @Mock
+    private MetricsService metricsService;
 
     @InjectMocks
     private AuthController authController;

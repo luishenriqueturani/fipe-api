@@ -2,6 +2,7 @@ package com.exemplo.controllers;
 
 import com.exemplo.dto.FipeSearchDtos;
 import com.exemplo.services.FipeSearchService;
+import com.exemplo.services.MetricsService;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,9 @@ class FipeSearchControllerTest {
 
     @Mock
     private FipeSearchService fipeSearchService;
+
+    @Mock
+    private MetricsService metricsService;
 
     @InjectMocks
     private FipeSearchController fipeSearchController;

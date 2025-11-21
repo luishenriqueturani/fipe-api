@@ -2,6 +2,7 @@ package com.exemplo.controllers;
 
 import com.exemplo.dto.FipeSearchDtos;
 import com.exemplo.services.FipeSearchService;
+import com.exemplo.services.MetricsService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DefaultValue;
@@ -11,6 +12,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.metrics.annotation.Timed;
 import org.jboss.logging.Logger;
 
 import static com.exemplo.security.SecurityRoles.ADMIN;
@@ -24,10 +28,24 @@ public class FipeSearchController {
   @Inject
   FipeSearchService fipeSearchService;
 
+  @Inject
+  MetricsService metricsService;
+
   @GET
   @Path("/vehicle-types/search")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed({API_CLIENT, ADMIN})
+  @Counted(
+    name = "fipe_api_vehicle_types_search_requests_total",
+    description = "Total de buscas de tipos de veículo",
+    absolute = true
+  )
+  @Timed(
+    name = "fipe_api_vehicle_types_search_duration",
+    description = "Duração das buscas de tipos de veículo",
+    unit = MetricUnits.MILLISECONDS,
+    absolute = true
+  )
   public Response searchVehicleTypes(
       @QueryParam("name") String name,
       @QueryParam("page") @DefaultValue("1") int page,
@@ -55,6 +73,7 @@ public class FipeSearchController {
 
       FipeSearchDtos.PaginatedResponse<FipeSearchDtos.VehicleTypeResponse> result = 
           fipeSearchService.searchVehicleTypes(name, page, pageSize);
+      metricsService.incrementSearches();
 
       LOG.info("Encontrados " + result.meta.totalItems + " tipos de veículo (página " + page + " de " + result.meta.totalPages + ")");
       return Response.ok(result).build();
@@ -71,6 +90,17 @@ public class FipeSearchController {
   @Path("/brands/search")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed({API_CLIENT, ADMIN})
+  @Counted(
+    name = "fipe_api_brands_search_requests_total",
+    description = "Total de buscas de marcas",
+    absolute = true
+  )
+  @Timed(
+    name = "fipe_api_brands_search_duration",
+    description = "Duração das buscas de marcas",
+    unit = MetricUnits.MILLISECONDS,
+    absolute = true
+  )
   public Response searchBrands(
       @QueryParam("name") String name,
       @QueryParam("vehicleType") String vehicleType,
@@ -101,6 +131,7 @@ public class FipeSearchController {
 
       FipeSearchDtos.PaginatedResponse<FipeSearchDtos.BrandResponse> result = 
           fipeSearchService.searchBrands(name, vehicleType, page, pageSize);
+      metricsService.incrementSearches();
 
       LOG.info("Encontradas " + result.meta.totalItems + " marcas (página " + page + " de " + result.meta.totalPages + ")");
       return Response.ok(result).build();
@@ -117,6 +148,17 @@ public class FipeSearchController {
   @Path("/models/search")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed({API_CLIENT, ADMIN})
+  @Counted(
+    name = "fipe_api_models_search_requests_total",
+    description = "Total de buscas de modelos",
+    absolute = true
+  )
+  @Timed(
+    name = "fipe_api_models_search_duration",
+    description = "Duração das buscas de modelos",
+    unit = MetricUnits.MILLISECONDS,
+    absolute = true
+  )
   public Response searchModels(
       @QueryParam("name") String name,
       @QueryParam("brand") String brand,
@@ -153,6 +195,7 @@ public class FipeSearchController {
 
       FipeSearchDtos.PaginatedResponse<FipeSearchDtos.ModelResponse> result = 
           fipeSearchService.searchModels(name, brand, vehicleType, modelBase, version, page, pageSize);
+      metricsService.incrementSearches();
 
       LOG.info("Encontrados " + result.meta.totalItems + " modelos (página " + page + " de " + result.meta.totalPages + ")");
       return Response.ok(result).build();

@@ -2,6 +2,7 @@ package com.exemplo.controllers;
 
 import com.exemplo.dto.FipeDataDtos.FipeDataRequest;
 import com.exemplo.services.FipeDataService;
+import com.exemplo.services.MetricsService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -10,6 +11,9 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.metrics.annotation.Timed;
 import org.jboss.logging.Logger;
 
 import static com.exemplo.security.SecurityRoles.ADMIN;
@@ -22,11 +26,25 @@ public class FipeDataController {
   @Inject
   FipeDataService fipeDataService;
 
+  @Inject
+  MetricsService metricsService;
+
   @POST
   @Path("/update")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed(ADMIN)
+  @Counted(
+    name = "fipe_api_data_update_requests_total",
+    description = "Total de requisições de atualização de dados FIPE",
+    absolute = true
+  )
+  @Timed(
+    name = "fipe_api_data_update_duration",
+    description = "Duração das atualizações de dados FIPE",
+    unit = MetricUnits.MILLISECONDS,
+    absolute = true
+  )
   public Response updateFipeData(FipeDataRequest request) {
     try {
       LOG.info("Recebida requisição para atualizar dados da FIPE");
@@ -47,6 +65,7 @@ public class FipeDataController {
       }
 
       fipeDataService.processFipeData(request);
+      metricsService.incrementDataUpdates();
 
       LOG.info("Dados da FIPE atualizados com sucesso");
       return Response.ok("{\"message\": \"Dados da FIPE atualizados com sucesso\"}")

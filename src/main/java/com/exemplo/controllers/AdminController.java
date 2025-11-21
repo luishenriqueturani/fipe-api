@@ -5,6 +5,7 @@ import com.exemplo.dto.AuthDtos.TokenResponse;
 import com.exemplo.dto.SessionDtos;
 import com.exemplo.entities.Session;
 import com.exemplo.services.AuthService;
+import com.exemplo.services.MetricsService;
 import com.exemplo.services.SessionService;
 import io.smallrye.jwt.auth.principal.DefaultJWTParser;
 import io.smallrye.jwt.auth.principal.ParseException;
@@ -20,6 +21,9 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.metrics.annotation.Timed;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,10 +38,24 @@ public class AdminController {
 	@Inject
 	SessionService sessionService;
 
+	@Inject
+	MetricsService metricsService;
+
 	@POST
 	@Path("/login")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
+	@Counted(
+		name = "fipe_api_admin_login_requests_total",
+		description = "Total de requisições de login de administradores",
+		absolute = true
+	)
+	@Timed(
+		name = "fipe_api_admin_login_duration",
+		description = "Duração das requisições de login de administradores",
+		unit = MetricUnits.MILLISECONDS,
+		absolute = true
+	)
 	public Response login(AdminLoginRequest request, @Context HttpHeaders headers) {
 		if (request == null || request.email == null || request.password == null) {
 			return Response.status(Response.Status.BAD_REQUEST)
@@ -59,10 +77,15 @@ public class AdminController {
 
 		String jwt = authService.issueTokenForAdmin(request.email, request.password, ipAddress, userAgent);
 		if (jwt == null) {
+			metricsService.incrementFailedLogins();
 			return Response.status(Response.Status.UNAUTHORIZED)
 					.entity("{\"error\": \"Credenciais inválidas\"}")
 					.build();
 		}
+
+		// Incrementar métricas de sucesso
+		metricsService.incrementSuccessfulLogins();
+		metricsService.incrementAdminTokensIssued();
 
 		// Token válido por 8 horas para admin
 		return Response.ok(new TokenResponse(jwt, "bearer", 28800)).build();

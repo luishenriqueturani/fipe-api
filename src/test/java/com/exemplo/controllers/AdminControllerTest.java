@@ -6,6 +6,7 @@ import com.exemplo.entities.AdminUser;
 import com.exemplo.entities.ApiClient;
 import com.exemplo.entities.Session;
 import com.exemplo.services.AuthService;
+import com.exemplo.services.MetricsService;
 import com.exemplo.services.SessionService;
 import io.smallrye.jwt.auth.principal.DefaultJWTParser;
 import io.smallrye.jwt.auth.principal.ParseException;
@@ -34,6 +35,9 @@ class AdminControllerTest {
 
     @Mock
     private SessionService sessionService;
+
+    @Mock
+    private MetricsService metricsService;
 
     @InjectMocks
     private AdminController adminController;
