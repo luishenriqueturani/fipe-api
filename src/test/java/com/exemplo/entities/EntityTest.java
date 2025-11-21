@@ -22,6 +22,7 @@ class EntityTest {
         Session.deleteAll();
         ApiClient.deleteAll();
         AdminUser.deleteAll();
+        // Limpar JwtKey antes de outros para evitar problemas com warmUp
         JwtKey.deleteAll();
         Price.deleteAll();
         ModelYear.deleteAll();
